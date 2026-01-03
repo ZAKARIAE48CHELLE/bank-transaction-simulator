@@ -1,6 +1,7 @@
 package org.example.bank.transactions;
 
 import org.example.bank.dao.AccountDAO;
+import org.example.bank.dao.TransactionDAO;
 import org.example.bank.model.Account;
 
 public class WithdrawTransaction implements Transaction {
@@ -8,6 +9,7 @@ public class WithdrawTransaction implements Transaction {
     private final Account account;
     private final double amount;
     private final AccountDAO accountDAO = new AccountDAO();
+    private final TransactionDAO transactionDAO = new TransactionDAO();
 
     public WithdrawTransaction(Account account, double amount) {
         this.account = account;
@@ -30,10 +32,15 @@ public class WithdrawTransaction implements Transaction {
             accountDAO.updateBalance(account.getId(), newBalance);
             account.setBalance(newBalance);
 
-            System.out.println("✅ Withdrawal successful. New balance: " + newBalance);
+            // ✅ LOG TRANSACTION
+            transactionDAO.logWithdraw(account.getAccountRef(), amount);
+
+            System.out.println("Withdrawal successful from "
+                    + account.getAccountRef()
+                    + ". New balance: " + newBalance);
 
         } catch (InterruptedException e) {
-            System.out.println("❌ Withdrawal interrupted");
+            System.out.println("Withdrawal interrupted");
         } finally {
             account.getSemaphore().release();
         }

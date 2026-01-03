@@ -1,6 +1,7 @@
 package org.example.bank.transactions;
 
 import org.example.bank.dao.AccountDAO;
+import org.example.bank.dao.TransactionDAO;
 import org.example.bank.model.Account;
 
 public class TransferTransaction implements Transaction {
@@ -9,6 +10,7 @@ public class TransferTransaction implements Transaction {
     private final Account to;
     private final double amount;
     private final AccountDAO accountDAO = new AccountDAO();
+    private final TransactionDAO transactionDAO = new TransactionDAO();
 
     public TransferTransaction(Account from, Account to, double amount) {
         this.from = from;
@@ -19,17 +21,15 @@ public class TransferTransaction implements Transaction {
     @Override
     public void execute() {
 
-        // Deadlock-safe ordering
         Account first = from.getId() < to.getId() ? from : to;
         Account second = from.getId() < to.getId() ? to : from;
 
         try {
-            // Lock both accounts in order
             first.getSemaphore().acquire();
             second.getSemaphore().acquire();
 
             if (from.getBalance() < amount) {
-                System.out.println("❌ Transfer failed: insufficient balance");
+                System.out.println("Transfer failed: insufficient balance");
                 return;
             }
 
@@ -42,14 +42,22 @@ public class TransferTransaction implements Transaction {
             from.setBalance(newFromBalance);
             to.setBalance(newToBalance);
 
-            System.out.println("✅ Transfer successful: "
-                    + amount + " from Account #" + from.getId()
-                    + " to Account #" + to.getId());
+            // ✅ LOG TRANSACTION
+            transactionDAO.logTransfer(
+                    from.getAccountRef(),
+                    to.getAccountRef(),
+                    amount
+            );
+
+            System.out.println("Transfer successful: "
+                    + amount + " from "
+                    + from.getAccountRef()
+                    + " to "
+                    + to.getAccountRef());
 
         } catch (InterruptedException e) {
             System.out.println("❌ Transfer interrupted");
         } finally {
-            // Always release in reverse order
             second.getSemaphore().release();
             first.getSemaphore().release();
         }

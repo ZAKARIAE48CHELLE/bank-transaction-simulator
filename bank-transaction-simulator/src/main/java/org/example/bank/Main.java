@@ -2,14 +2,14 @@ package org.example.bank;
 
 import org.example.bank.auth.LoginService;
 import org.example.bank.auth.User;
+import org.example.bank.concurrency.BankEngine;
+import org.example.bank.concurrency.Worker;
 import org.example.bank.dao.AccountDAO;
 import org.example.bank.model.Account;
 import org.example.bank.transactions.DepositTransaction;
 import org.example.bank.transactions.WithdrawTransaction;
 import org.example.bank.transactions.TransferTransaction;
 import org.example.bank.transactions.Transaction;
-import org.example.bank.concurrency.BankEngine;
-import org.example.bank.concurrency.Worker;
 
 import java.util.List;
 import java.util.Scanner;
@@ -22,6 +22,7 @@ public class Main {
 
         Scanner scanner = new Scanner(System.in);
         LoginService loginService = new LoginService();
+        AccountDAO accountDAO = new AccountDAO();
 
         // ================= LOGIN =================
         System.out.print("Username: ");
@@ -50,21 +51,21 @@ public class Main {
             workers[i].start();
         }
 
-        AccountDAO accountDAO = new AccountDAO();
         boolean running = true;
 
         // ================= MENU LOOP =================
         while (running) {
 
-            List<Account> accounts = accountDAO.findByUserId(user.getId());
+            // 🔄 Always reload fresh data
+            List<Account> userAccounts = accountDAO.findByUserId(user.getId());
 
-            if (accounts.isEmpty()) {
+            if (userAccounts.isEmpty()) {
                 System.out.println("❌ You have no accounts.");
                 break;
             }
 
             System.out.println("\nYour accounts:");
-            for (Account acc : accounts) {
+            for (Account acc : userAccounts) {
                 System.out.println("Account " + acc.getAccountRef()
                         + " | Balance = " + acc.getBalance());
             }
@@ -83,12 +84,12 @@ public class Main {
                 break;
             }
 
-            // ---------- SOURCE ACCOUNT ----------
+            // ---------- SOURCE ACCOUNT (USER OWNED) ----------
             System.out.print("Choose source account reference: ");
             String fromRef = scanner.nextLine();
 
             Account fromAccount = null;
-            for (Account acc : accounts) {
+            for (Account acc : userAccounts) {
                 if (acc.getAccountRef().equals(fromRef)) {
                     fromAccount = acc;
                     break;
@@ -96,26 +97,26 @@ public class Main {
             }
 
             if (fromAccount == null) {
-                System.out.println("❌ Invalid account reference.");
+                System.out.println("❌ Invalid source account.");
                 continue;
             }
 
             Account toAccount = null;
 
-            // ---------- TARGET ACCOUNT (TRANSFER ONLY) ----------
+            // ---------- TARGET ACCOUNT (ANY ACCOUNT IN DB) ----------
             if (choice == 3) {
                 System.out.print("Choose target account reference: ");
                 String toRef = scanner.nextLine();
 
-                for (Account acc : accounts) {
-                    if (acc.getAccountRef().equals(toRef)) {
-                        toAccount = acc;
-                        break;
-                    }
+                toAccount = accountDAO.findByAccountRef(toRef);
+
+                if (toAccount == null) {
+                    System.out.println("❌ Target account not found.");
+                    continue;
                 }
 
-                if (toAccount == null || toAccount == fromAccount) {
-                    System.out.println("❌ Invalid target account reference.");
+                if (toAccount.getAccountRef().equals(fromAccount.getAccountRef())) {
+                    System.out.println("❌ Cannot transfer to the same account.");
                     continue;
                 }
             }
@@ -139,7 +140,12 @@ public class Main {
 
             // ---------- SUBMIT TRANSACTION ----------
             engine.submit(transaction);
-            System.out.println("🕒 Transaction submitted...");
+            System.out.println("🕒 Transaction submitted, processing...");
+
+            // ⏳ Small pause to let worker print cleanly (UI only)
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException ignored) {}
         }
 
         // ================= SHUTDOWN =================

@@ -93,4 +93,35 @@ public class AccountDAO {
             e.printStackTrace();
         }
     }
+    public Account findByAccountRef(String accountRef) {
+
+        String sql = """
+        SELECT id, user_id, account_ref, balance
+        FROM accounts
+        WHERE account_ref = ?
+    """;
+
+        try {
+            Connection conn = DBConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, accountRef);
+
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                return new Account(
+                        rs.getInt("id"),
+                        rs.getInt("user_id"),
+                        rs.getString("account_ref"),
+                        rs.getDouble("balance")
+                );
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
 }
