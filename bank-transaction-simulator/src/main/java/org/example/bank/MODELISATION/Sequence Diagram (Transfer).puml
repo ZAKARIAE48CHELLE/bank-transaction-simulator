@@ -1,0 +1,29 @@
+@startuml
+title Transfer Transaction - Sequence Diagram
+
+participant Main
+participant BankEngine
+participant Worker
+participant TransferTransaction
+participant Account
+participant AccountDAO
+participant TransactionDAO
+
+Main -> BankEngine : submit(TransferTransaction)
+
+BankEngine -> Worker : take()
+
+Worker -> TransferTransaction : execute()
+
+TransferTransaction -> TransactionDAO : log(PENDING)
+
+TransferTransaction -> Account : acquireSemaphore()
+TransferTransaction -> AccountDAO : updateBalance(from)
+TransferTransaction -> AccountDAO : updateBalance(to)
+TransferTransaction -> Account : releaseSemaphore()
+
+TransferTransaction -> TransactionDAO : markDone()
+
+Worker --> Main : (async completion)
+
+@enduml

@@ -1,0 +1,81 @@
+@startuml
+title Bank Transaction Simulator - Class Diagram
+
+class Main
+
+class BankEngine {
+  - queue : BlockingQueue<Transaction>
+  + submit(t : Transaction)
+  + take() : Transaction
+}
+
+class Worker {
+  - engine : BankEngine
+  - running : boolean
+  + run()
+  + shutdown()
+}
+
+interface Transaction {
+  + execute()
+}
+
+class DepositTransaction
+class WithdrawTransaction
+class TransferTransaction
+
+class Account {
+  - id : int
+  - userId : int
+  - accountRef : String
+  - balance : double
+  - semaphore : Semaphore
+}
+
+class User {
+  - id : int
+  - username : String
+  - role : Role
+}
+
+class AccountDAO {
+  + findByUserId(userId)
+  + findByAccountRef(ref)
+  + updateBalance(id, balance)
+}
+
+class TransactionDAO {
+  + log(...)
+  + markDone(id)
+  + markFailed(id)
+  + findHistoryByAccountRef(ref)
+}
+
+Main --> BankEngine
+Main --> AccountDAO
+Main --> TransactionDAO
+Main --> User
+
+BankEngine --> Transaction
+Worker --> BankEngine
+Worker --> Transaction
+
+Transaction <|-- DepositTransaction
+Transaction <|-- WithdrawTransaction
+Transaction <|-- TransferTransaction
+
+DepositTransaction --> Account
+WithdrawTransaction --> Account
+TransferTransaction --> Account
+
+DepositTransaction --> AccountDAO
+WithdrawTransaction --> AccountDAO
+TransferTransaction --> AccountDAO
+
+DepositTransaction --> TransactionDAO
+WithdrawTransaction --> TransactionDAO
+TransferTransaction --> TransactionDAO
+
+Account "1" --> "1" Semaphore
+
+@enduml
