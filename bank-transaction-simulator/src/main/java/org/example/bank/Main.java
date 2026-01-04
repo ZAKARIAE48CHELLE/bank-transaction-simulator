@@ -5,6 +5,7 @@ import org.example.bank.auth.User;
 import org.example.bank.concurrency.BankEngine;
 import org.example.bank.concurrency.Worker;
 import org.example.bank.dao.AccountDAO;
+import org.example.bank.dao.TransactionDAO;
 import org.example.bank.model.Account;
 import org.example.bank.transactions.DepositTransaction;
 import org.example.bank.transactions.WithdrawTransaction;
@@ -23,6 +24,7 @@ public class Main {
         Scanner scanner = new Scanner(System.in);
         LoginService loginService = new LoginService();
         AccountDAO accountDAO = new AccountDAO();
+        TransactionDAO transactionDAO = new TransactionDAO();
 
         // ================= LOGIN =================
         System.out.print("Username: ");
@@ -56,11 +58,11 @@ public class Main {
         // ================= MENU LOOP =================
         while (running) {
 
-            // 🔄 Always reload fresh data
+            // Reload fresh account data
             List<Account> userAccounts = accountDAO.findByUserId(user.getId());
 
             if (userAccounts.isEmpty()) {
-                System.out.println("❌ You have no accounts.");
+                System.out.println("You have no accounts.");
                 break;
             }
 
@@ -74,17 +76,36 @@ public class Main {
             System.out.println("1. Deposit");
             System.out.println("2. Withdraw");
             System.out.println("3. Transfer");
-            System.out.println("4. Exit");
+            System.out.println("4. Show transaction history");
+            System.out.println("5. Exit");
             System.out.print("Your choice: ");
 
             int choice = Integer.parseInt(scanner.nextLine());
 
-            if (choice == 4) {
+            // ========== EXIT ==========
+            if (choice == 5) {
                 running = false;
                 break;
             }
 
-            // ---------- SOURCE ACCOUNT (USER OWNED) ----------
+            // ========== HISTORY ==========
+            if (choice == 4) {
+                System.out.print("Enter account reference: ");
+                String ref = scanner.nextLine();
+
+                List<String> history =
+                        transactionDAO.findHistoryByAccountRef(ref);
+
+                if (history.isEmpty()) {
+                    System.out.println("No transactions found.");
+                } else {
+                    System.out.println("\n--- Transaction History for " + ref + " ---");
+                    history.forEach(System.out::println);
+                }
+                continue;
+            }
+
+            // ========== SOURCE ACCOUNT ==========
             System.out.print("Choose source account reference: ");
             String fromRef = scanner.nextLine();
 
@@ -103,7 +124,7 @@ public class Main {
 
             Account toAccount = null;
 
-            // ---------- TARGET ACCOUNT (ANY ACCOUNT IN DB) ----------
+            // ========== TARGET ACCOUNT (TRANSFER) ==========
             if (choice == 3) {
                 System.out.print("Choose target account reference: ");
                 String toRef = scanner.nextLine();
@@ -121,7 +142,7 @@ public class Main {
                 }
             }
 
-            // ---------- AMOUNT ----------
+            // ========== AMOUNT ==========
             System.out.print("Amount: ");
             double amount = Double.parseDouble(scanner.nextLine());
 
@@ -138,11 +159,11 @@ public class Main {
                 continue;
             }
 
-            // ---------- SUBMIT TRANSACTION ----------
+            // ========== SUBMIT ==========
             engine.submit(transaction);
             System.out.println("🕒 Transaction submitted, processing...");
 
-            // ⏳ Small pause to let worker print cleanly (UI only)
+            // Small pause → cleaner console output (UI only)
             try {
                 Thread.sleep(300);
             } catch (InterruptedException ignored) {}

@@ -9,6 +9,7 @@ public class TransferTransaction implements Transaction {
     private final Account from;
     private final Account to;
     private final double amount;
+
     private final AccountDAO accountDAO = new AccountDAO();
     private final TransactionDAO transactionDAO = new TransactionDAO();
 
@@ -21,6 +22,14 @@ public class TransferTransaction implements Transaction {
     @Override
     public void execute() {
 
+        // 1️⃣ Log transaction as PENDING
+        int txId = transactionDAO.log(
+                "TRANSFER",
+                from.getAccountRef(),
+                to.getAccountRef(),
+                amount
+        );
+
         Account first = from.getId() < to.getId() ? from : to;
         Account second = from.getId() < to.getId() ? to : from;
 
@@ -29,7 +38,8 @@ public class TransferTransaction implements Transaction {
             second.getSemaphore().acquire();
 
             if (from.getBalance() < amount) {
-                System.out.println("Transfer failed: insufficient balance");
+                System.out.println("❌ Transfer failed: insufficient balance");
+                transactionDAO.markFailed(txId);
                 return;
             }
 
@@ -42,14 +52,10 @@ public class TransferTransaction implements Transaction {
             from.setBalance(newFromBalance);
             to.setBalance(newToBalance);
 
-            // ✅ LOG TRANSACTION
-            transactionDAO.logTransfer(
-                    from.getAccountRef(),
-                    to.getAccountRef(),
-                    amount
-            );
+            // 2️⃣ Mark transaction as DONE
+            transactionDAO.markDone(txId);
 
-            System.out.println("Transfer successful: "
+            System.out.println("✅ Transfer successful: "
                     + amount + " from "
                     + from.getAccountRef()
                     + " to "
@@ -57,6 +63,7 @@ public class TransferTransaction implements Transaction {
 
         } catch (InterruptedException e) {
             System.out.println("❌ Transfer interrupted");
+            transactionDAO.markFailed(txId);
         } finally {
             second.getSemaphore().release();
             first.getSemaphore().release();

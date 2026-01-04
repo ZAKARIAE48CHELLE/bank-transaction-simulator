@@ -8,6 +8,7 @@ public class DepositTransaction implements Transaction {
 
     private final Account account;
     private final double amount;
+
     private final AccountDAO accountDAO = new AccountDAO();
     private final TransactionDAO transactionDAO = new TransactionDAO();
 
@@ -19,6 +20,14 @@ public class DepositTransaction implements Transaction {
     @Override
     public void execute() {
 
+        // 1️⃣ Log as PENDING
+        int txId = transactionDAO.log(
+                "DEPOSIT",
+                null,
+                account.getAccountRef(),
+                amount
+        );
+
         try {
             account.getSemaphore().acquire();
 
@@ -27,10 +36,10 @@ public class DepositTransaction implements Transaction {
             accountDAO.updateBalance(account.getId(), newBalance);
             account.setBalance(newBalance);
 
-            // ✅ LOG TRANSACTION
-            transactionDAO.logDeposit(account.getAccountRef(), amount);
+            // 2️⃣ Mark DONE
+            transactionDAO.markDone(txId);
 
-            System.out.println("Deposit successful on "
+            System.out.println("✅ Deposit successful on "
                     + account.getAccountRef()
                     + ". New balance: " + newBalance);
 

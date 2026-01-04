@@ -8,6 +8,7 @@ public class WithdrawTransaction implements Transaction {
 
     private final Account account;
     private final double amount;
+
     private final AccountDAO accountDAO = new AccountDAO();
     private final TransactionDAO transactionDAO = new TransactionDAO();
 
@@ -18,6 +19,14 @@ public class WithdrawTransaction implements Transaction {
 
     @Override
     public void execute() {
+
+        // 1️⃣ Log as PENDING
+        int txId = transactionDAO.log(
+                "WITHDRAW",
+                account.getAccountRef(),
+                null,
+                amount
+        );
 
         try {
             account.getSemaphore().acquire();
@@ -32,10 +41,10 @@ public class WithdrawTransaction implements Transaction {
             accountDAO.updateBalance(account.getId(), newBalance);
             account.setBalance(newBalance);
 
-            // ✅ LOG TRANSACTION
-            transactionDAO.logWithdraw(account.getAccountRef(), amount);
+            // 2️⃣ Mark DONE
+            transactionDAO.markDone(txId);
 
-            System.out.println("Withdrawal successful from "
+            System.out.println("✅ Withdrawal successful from "
                     + account.getAccountRef()
                     + ". New balance: " + newBalance);
 
