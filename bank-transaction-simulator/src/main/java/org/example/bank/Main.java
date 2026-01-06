@@ -7,185 +7,213 @@ import org.example.bank.concurrency.Worker;
 import org.example.bank.dao.AccountDAO;
 import org.example.bank.dao.TransactionDAO;
 import org.example.bank.model.Account;
-import org.example.bank.transactions.DepositTransaction;
-import org.example.bank.transactions.WithdrawTransaction;
-import org.example.bank.transactions.TransferTransaction;
-import org.example.bank.transactions.Transaction;
+import org.example.bank.transactions.*;
 
+import javax.swing.*;
+import java.awt.*;
 import java.util.List;
-import java.util.Scanner;
 
-public class Main {
+public class Main extends JFrame {
 
-    public static void main(String[] args) {
+    private User user;
+    private final LoginService loginService = new LoginService();
+    private final AccountDAO accountDAO = new AccountDAO();
+    private final TransactionDAO transactionDAO = new TransactionDAO();
 
-        System.out.println("=== Bank Transaction Simulator ===");
+    private final BankEngine engine = new BankEngine();
+    private Worker[] workers;
 
-        Scanner scanner = new Scanner(System.in);
-        LoginService loginService = new LoginService();
-        AccountDAO accountDAO = new AccountDAO();
-        TransactionDAO transactionDAO = new TransactionDAO();
+    private JComboBox<Account> accountBox;
+    private JTextArea outputArea;
 
-        // ================= LOGIN =================
-        System.out.print("Username: ");
-        String username = scanner.nextLine();
+    // ================== CONSTRUCTOR ==================
+    public Main() {
 
-        System.out.print("Password: ");
-        String password = scanner.nextLine();
+        setTitle("Bank Transaction Simulator");
+        setSize(500, 400);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
 
-        User user = loginService.login(username, password);
+        startWorkers();
+        loginDialog();     // blocks until login success
+        buildUI();
+
+        setVisible(true); // 🔴 VERY IMPORTANT
+    }
+
+    // ================== LOGIN ==================
+    private void loginDialog() {
+
+        JTextField userField = new JTextField();
+        JPasswordField passField = new JPasswordField();
+
+        Object[] fields = {
+                "Username:", userField,
+                "Password:", passField
+        };
+
+        int option = JOptionPane.showConfirmDialog(
+                this, fields, "Login",
+                JOptionPane.OK_CANCEL_OPTION
+        );
+
+        if (option != JOptionPane.OK_OPTION) {
+            System.exit(0);
+        }
+
+        user = loginService.login(
+                userField.getText(),
+                new String(passField.getPassword())
+        );
 
         if (user == null) {
-            System.out.println("❌ Login failed!");
+            JOptionPane.showMessageDialog(
+                    this, "Login failed",
+                    "Error", JOptionPane.ERROR_MESSAGE
+            );
+            System.exit(0);
+        }
+    }
+
+    // ================== UI ==================
+    private void buildUI() {
+
+        setLayout(new BorderLayout());
+
+        // ---- TOP PANEL ----
+        JPanel top = new JPanel(new FlowLayout());
+        top.add(new JLabel("Welcome " + user.getUsername()
+                + " (" + user.getRole() + ")"));
+        add(top, BorderLayout.NORTH);
+
+        // ---- CENTER ----
+        outputArea = new JTextArea();
+        outputArea.setEditable(false);
+        add(new JScrollPane(outputArea), BorderLayout.CENTER);
+
+        // ---- BOTTOM ----
+        JPanel bottom = new JPanel(new GridLayout(2, 1));
+
+        accountBox = new JComboBox<>(loadAccounts());
+        bottom.add(accountBox);
+
+        JPanel buttons = new JPanel();
+
+        JButton depositBtn = new JButton("Deposit");
+        JButton withdrawBtn = new JButton("Withdraw");
+        JButton transferBtn = new JButton("Transfer");
+        JButton historyBtn = new JButton("History");
+        JButton exitBtn = new JButton("Exit");
+
+        buttons.add(depositBtn);
+        buttons.add(withdrawBtn);
+        buttons.add(transferBtn);
+        buttons.add(historyBtn);
+        buttons.add(exitBtn);
+
+        bottom.add(buttons);
+        add(bottom, BorderLayout.SOUTH);
+
+        // ---- ACTIONS ----
+        depositBtn.addActionListener(e -> deposit());
+        withdrawBtn.addActionListener(e -> withdraw());
+        transferBtn.addActionListener(e -> transfer());
+        historyBtn.addActionListener(e -> history());
+        exitBtn.addActionListener(e -> exit());
+    }
+
+    // ================== ACTIONS ==================
+    private void deposit() {
+        Account acc = (Account) accountBox.getSelectedItem();
+        double amount = askAmount();
+        if (amount <= 0) return;
+
+        engine.submit(new DepositTransaction(acc, amount));
+        log("Deposit submitted");
+    }
+
+    private void withdraw() {
+        Account acc = (Account) accountBox.getSelectedItem();
+        double amount = askAmount();
+        if (amount <= 0) return;
+
+        engine.submit(new WithdrawTransaction(acc, amount));
+        log("Withdraw submitted");
+    }
+
+    private void transfer() {
+        Account from = (Account) accountBox.getSelectedItem();
+        String toRef = JOptionPane.showInputDialog(this,
+                "Target account reference:");
+
+        if (toRef == null) return;
+
+        Account to = accountDAO.findByAccountRef(toRef);
+        if (to == null) {
+            JOptionPane.showMessageDialog(this, "Account not found");
             return;
         }
 
-        System.out.println("✅ Login successful!");
-        System.out.println("Welcome " + user.getUsername()
-                + " (" + user.getRole() + ")");
+        double amount = askAmount();
+        if (amount <= 0) return;
 
-        // ================= START ENGINE & WORKERS =================
-        BankEngine engine = new BankEngine();
+        engine.submit(new TransferTransaction(from, to, amount));
+        log("Transfer submitted");
+    }
 
-        Worker[] workers = new Worker[3];
+    private void history() {
+        Account acc = (Account) accountBox.getSelectedItem();
+        outputArea.setText("");
+
+        transactionDAO.findHistoryByAccountRef(acc.getAccountRef())
+                .forEach(this::log);
+    }
+
+    private void exit() {
+        shutdownWorkers();
+        System.exit(0);
+    }
+
+    // ================== HELPERS ==================
+    private Account[] loadAccounts() {
+        List<Account> list = accountDAO.findByUserId(user.getId());
+        return list.toArray(new Account[0]);
+    }
+
+    private double askAmount() {
+        try {
+            return Double.parseDouble(
+                    JOptionPane.showInputDialog(this, "Amount:")
+            );
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    private void log(String msg) {
+        SwingUtilities.invokeLater(() ->
+                outputArea.append(msg + "\n")
+        );
+    }
+
+    // ================== WORKERS ==================
+    private void startWorkers() {
+        workers = new Worker[3];
         for (int i = 0; i < workers.length; i++) {
             workers[i] = new Worker(engine, i + 1);
             workers[i].start();
         }
-
-        boolean running = true;
-
-        // ================= MENU LOOP =================
-        while (running) {
-
-            // Reload fresh account data
-            List<Account> userAccounts = accountDAO.findByUserId(user.getId());
-
-            if (userAccounts.isEmpty()) {
-                System.out.println("You have no accounts.");
-                break;
-            }
-
-            System.out.println("\nYour accounts:");
-            for (Account acc : userAccounts) {
-                System.out.println("Account " + acc.getAccountRef()
-                        + " | Balance = " + acc.getBalance());
-            }
-
-            System.out.println("\nChoose an option:");
-            System.out.println("1. Deposit");
-            System.out.println("2. Withdraw");
-            System.out.println("3. Transfer");
-            System.out.println("4. Show transaction history");
-            System.out.println("5. Exit");
-            System.out.print("Your choice: ");
-
-            int choice = Integer.parseInt(scanner.nextLine());
-
-            // ========== EXIT ==========
-            if (choice == 5) {
-                running = false;
-                break;
-            }
-
-            // ========== HISTORY ==========
-            if (choice == 4) {
-                System.out.print("Enter account reference: ");
-                String ref = scanner.nextLine();
-
-                List<String> history =
-                        transactionDAO.findHistoryByAccountRef(ref);
-
-                if (history.isEmpty()) {
-                    System.out.println("No transactions found.");
-                } else {
-                    System.out.println("\n--- Transaction History for " + ref + " ---");
-                    history.forEach(System.out::println);
-                }
-                continue;
-            }
-
-            // ========== SOURCE ACCOUNT ==========
-            System.out.print("Choose source account reference: ");
-            String fromRef = scanner.nextLine();
-
-            Account fromAccount = null;
-            for (Account acc : userAccounts) {
-                if (acc.getAccountRef().equals(fromRef)) {
-                    fromAccount = acc;
-                    break;
-                }
-            }
-
-            if (fromAccount == null) {
-                System.out.println("❌ Invalid source account.");
-                continue;
-            }
-
-            Account toAccount = null;
-
-            // ========== TARGET ACCOUNT (TRANSFER) ==========
-            if (choice == 3) {
-                System.out.print("Choose target account reference: ");
-                String toRef = scanner.nextLine();
-
-                toAccount = accountDAO.findByAccountRef(toRef);
-
-                if (toAccount == null) {
-                    System.out.println("❌ Target account not found.");
-                    continue;
-                }
-
-                if (toAccount.getAccountRef().equals(fromAccount.getAccountRef())) {
-                    System.out.println("❌ Cannot transfer to the same account.");
-                    continue;
-                }
-            }
-
-            // ========== AMOUNT ==========
-            System.out.print("Amount: ");
-            double amount = Double.parseDouble(scanner.nextLine());
-
-            Transaction transaction;
-
-            if (choice == 1) {
-                transaction = new DepositTransaction(fromAccount, amount);
-            } else if (choice == 2) {
-                transaction = new WithdrawTransaction(fromAccount, amount);
-            } else if (choice == 3) {
-                transaction = new TransferTransaction(fromAccount, toAccount, amount);
-            } else {
-                System.out.println("❌ Invalid choice.");
-                continue;
-            }
-
-            // ========== SUBMIT ==========
-            engine.submit(transaction);
-            System.out.println("🕒 Transaction submitted, processing...");
-
-            // Small pause → cleaner console output (UI only)
-            try {
-                Thread.sleep(300);
-            } catch (InterruptedException ignored) {}
-        }
-
-        // ================= SHUTDOWN =================
-        shutdownWorkers(workers);
-        System.out.println("Application finished.");
     }
 
-    // ================= CLEAN SHUTDOWN =================
-    private static void shutdownWorkers(Worker[] workers) {
-        System.out.println("\nShutting down workers...");
+    private void shutdownWorkers() {
+        for (Worker w : workers) w.shutdown();
         for (Worker w : workers) {
-            w.shutdown();
+            try { w.join(); } catch (InterruptedException ignored) {}
         }
-        for (Worker w : workers) {
-            try {
-                w.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
+    }
+
+    // ================== MAIN ==================
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(Main::new);
     }
 }

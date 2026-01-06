@@ -38,7 +38,7 @@ public class TransferTransaction implements Transaction {
             second.getSemaphore().acquire();
 
             if (from.getBalance() < amount) {
-                System.out.println("❌ Transfer failed: insufficient balance");
+                System.out.println("Transfer failed: insufficient balance");
                 transactionDAO.markFailed(txId);
                 return;
             }
@@ -52,17 +52,17 @@ public class TransferTransaction implements Transaction {
             from.setBalance(newFromBalance);
             to.setBalance(newToBalance);
 
-            // 2️⃣ Mark transaction as DONE
+            //  Mark transaction as DONE
             transactionDAO.markDone(txId);
 
-            System.out.println("✅ Transfer successful: "
+            System.out.println("Transfer successful: "
                     + amount + " from "
                     + from.getAccountRef()
                     + " to "
                     + to.getAccountRef());
 
         } catch (InterruptedException e) {
-            System.out.println("❌ Transfer interrupted");
+            System.out.println("Transfer interrupted");
             transactionDAO.markFailed(txId);
         } finally {
             second.getSemaphore().release();

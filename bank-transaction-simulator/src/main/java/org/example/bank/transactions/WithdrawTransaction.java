@@ -20,7 +20,7 @@ public class WithdrawTransaction implements Transaction {
     @Override
     public void execute() {
 
-        // 1️⃣ Log as PENDING
+        // Log as PENDING
         int txId = transactionDAO.log(
                 "WITHDRAW",
                 account.getAccountRef(),
@@ -32,7 +32,7 @@ public class WithdrawTransaction implements Transaction {
             account.getSemaphore().acquire();
 
             if (account.getBalance() < amount) {
-                System.out.println("❌ Insufficient balance");
+                System.out.println("Insufficient balance");
                 return;
             }
 
@@ -41,10 +41,10 @@ public class WithdrawTransaction implements Transaction {
             accountDAO.updateBalance(account.getId(), newBalance);
             account.setBalance(newBalance);
 
-            // 2️⃣ Mark DONE
+            // Mark DONE
             transactionDAO.markDone(txId);
 
-            System.out.println("✅ Withdrawal successful from "
+            System.out.println("Withdrawal successful from "
                     + account.getAccountRef()
                     + ". New balance: " + newBalance);
 
