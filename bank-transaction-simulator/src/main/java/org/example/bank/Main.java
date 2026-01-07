@@ -923,7 +923,7 @@ public class Main extends JFrame {
     }
 
     /**
-     * Transaction renderer for normal people:
+     * Transaction renderer for normal users:
      * - clear icon + label
      * - readable "From → To"
      * - big amount, smaller time
