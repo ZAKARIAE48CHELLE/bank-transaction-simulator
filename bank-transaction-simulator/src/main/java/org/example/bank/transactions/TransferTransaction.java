@@ -4,6 +4,8 @@ import org.example.bank.dao.AccountDAO;
 import org.example.bank.dao.TransactionDAO;
 import org.example.bank.model.Account;
 
+import java.util.List;
+
 public class TransferTransaction implements Transaction {
 
     private final Account from;
@@ -68,5 +70,10 @@ public class TransferTransaction implements Transaction {
             second.getSemaphore().release();
             first.getSemaphore().release();
         }
+    }
+
+    @Override
+    public List<String> lockKeys() {
+        return List.of(from.getAccountRef(), to.getAccountRef());
     }
 }
