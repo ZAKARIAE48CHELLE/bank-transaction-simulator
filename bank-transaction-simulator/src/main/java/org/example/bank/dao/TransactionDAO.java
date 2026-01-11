@@ -31,7 +31,7 @@ public class TransactionDAO {
         INSERT INTO transactions
         (type, from_account_ref, to_account_ref, amount, status)
         VALUES (?, ?, ?, ?, 'PENDING')
-    """;
+        """;
 
         try {
             Connection conn = DBConnection.getConnection();
@@ -46,9 +46,7 @@ public class TransactionDAO {
             stmt.executeUpdate();
 
             ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()) {
-                return rs.getInt(1); // transaction ID
-            }
+            if (rs.next()) return rs.getInt(1);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -66,7 +64,7 @@ public class TransactionDAO {
         FROM transactions
         WHERE from_account_ref = ? OR to_account_ref = ?
         ORDER BY created_at DESC
-    """;
+        """;
 
         try {
             Connection conn = DBConnection.getConnection();
@@ -93,10 +91,43 @@ public class TransactionDAO {
 
         return history;
     }
+
+    // ✅ Admin: all transactions (same format as history)
+    public List<String> findAllHistoryLines() {
+
+        List<String> history = new ArrayList<>();
+
+        String sql = """
+        SELECT type, from_account_ref, to_account_ref, amount, status, created_at
+        FROM transactions
+        ORDER BY created_at DESC
+        """;
+
+        try {
+            Connection conn = DBConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                history.add(
+                        rs.getString("created_at") + " | "
+                                + rs.getString("type") + " | "
+                                + rs.getString("from_account_ref") + " -> "
+                                + rs.getString("to_account_ref") + " | "
+                                + rs.getDouble("amount") + " | "
+                                + rs.getString("status")
+                );
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return history;
+    }
+
     public void markDone(int transactionId) {
-
         String sql = "UPDATE transactions SET status = 'DONE' WHERE id = ?";
-
         try {
             Connection conn = DBConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(sql);
@@ -106,10 +137,9 @@ public class TransactionDAO {
             e.printStackTrace();
         }
     }
+
     public void markFailed(int transactionId) {
-
         String sql = "UPDATE transactions SET status = 'FAILED' WHERE id = ?";
-
         try {
             Connection conn = DBConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(sql);
@@ -119,5 +149,4 @@ public class TransactionDAO {
             e.printStackTrace();
         }
     }
-
 }
