@@ -62,7 +62,7 @@ public class BankEngine {
         }
     }
 
-    // ✅ Robust reflection (works even for non-public inner classes)
+    // Robust reflection (works even for non-public inner classes)
     private List<String> getLockKeysIfExists(Transaction tx) {
         try {
             Method m;

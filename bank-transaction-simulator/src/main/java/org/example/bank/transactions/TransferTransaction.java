@@ -24,7 +24,7 @@ public class TransferTransaction implements Transaction {
     @Override
     public void execute() {
 
-        // 1️⃣ Log transaction as PENDING
+        // Log transaction as PENDING
         int txId = transactionDAO.log(
                 "TRANSFER",
                 from.getAccountRef(),

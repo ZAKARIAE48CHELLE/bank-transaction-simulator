@@ -22,7 +22,7 @@ public class DepositTransaction implements Transaction {
     @Override
     public void execute() {
 
-        // 1️⃣ Log as PENDING
+        // Log as PENDING
         int txId = transactionDAO.log(
                 "DEPOSIT",
                 null,
@@ -38,10 +38,10 @@ public class DepositTransaction implements Transaction {
             accountDAO.updateBalance(account.getId(), newBalance);
             account.setBalance(newBalance);
 
-            // 2️⃣ Mark DONE
+            // Mark DONE
             transactionDAO.markDone(txId);
 
-            System.out.println("✅ Deposit successful on "
+            System.out.println("Deposit successful on "
                     + account.getAccountRef()
                     + ". New balance: " + newBalance);
 
