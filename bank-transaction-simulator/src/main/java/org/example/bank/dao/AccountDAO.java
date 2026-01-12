@@ -8,12 +8,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class AccountDAO {
 
-    // OPTIONAL: keep it for admin usage
     public List<Account> findAll() {
-
         List<Account> accounts = new ArrayList<>();
         String sql = "SELECT id, user_id, account_ref, balance FROM accounts";
 
@@ -32,17 +31,13 @@ public class AccountDAO {
                         )
                 );
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
-
         return accounts;
     }
 
-    // MAIN METHOD USED BY CLIENTS
     public List<Account> findByUserId(int userId) {
-
         List<Account> accounts = new ArrayList<>();
 
         String sql = """
@@ -57,7 +52,6 @@ public class AccountDAO {
             stmt.setInt(1, userId);
 
             ResultSet rs = stmt.executeQuery();
-
             while (rs.next()) {
                 accounts.add(
                         new Account(
@@ -68,16 +62,13 @@ public class AccountDAO {
                         )
                 );
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
-
         return accounts;
     }
 
     public void updateBalance(int accountId, double newBalance) {
-
         String sql = "UPDATE accounts SET balance = ? WHERE id = ?";
 
         try {
@@ -88,13 +79,12 @@ public class AccountDAO {
             stmt.setInt(2, accountId);
 
             stmt.executeUpdate();
-
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-    public Account findByAccountRef(String accountRef) {
 
+    public Account findByAccountRef(String accountRef) {
         String sql = """
         SELECT id, user_id, account_ref, balance
         FROM accounts
@@ -107,7 +97,6 @@ public class AccountDAO {
             stmt.setString(1, accountRef);
 
             ResultSet rs = stmt.executeQuery();
-
             if (rs.next()) {
                 return new Account(
                         rs.getInt("id"),
@@ -116,12 +105,26 @@ public class AccountDAO {
                         rs.getDouble("balance")
                 );
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
-
         return null;
     }
 
+    // ✅ Create default account for a new user
+    public boolean createDefaultAccountForUser(int userId) {
+        String ref = "ACC-" + userId + "-" + UUID.randomUUID().toString().substring(0, 5);
+
+        String sql = "INSERT INTO accounts (user_id, account_ref, balance) VALUES (?, ?, 0)";
+        try {
+            Connection conn = DBConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setInt(1, userId);
+            stmt.setString(2, ref);
+            return stmt.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 }

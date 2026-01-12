@@ -3,6 +3,7 @@ package org.example.bank;
 import org.example.bank.auth.LoginService;
 import org.example.bank.auth.User;
 import org.example.bank.concurrency.BankEngine;
+import org.example.bank.concurrency.Worker;
 import org.example.bank.dao.AccountDAO;
 import org.example.bank.dao.TransactionDAO;
 import org.example.bank.ui.admin.AdminDashboardPanel;
@@ -22,6 +23,7 @@ public class Main extends JFrame {
     private final TransactionDAO transactionDAO = new TransactionDAO();
 
     private final BankEngine engine = new BankEngine();
+    private Worker[] workers;
 
     public Main() {
         setSystemLookAndFeel();
@@ -36,13 +38,19 @@ public class Main extends JFrame {
             @Override public void windowClosing(WindowEvent e) { exit(); }
         });
 
+        // 1) Login
         user = showLoginDialog();
         if (user == null) {
             System.exit(0);
             return;
         }
 
+        // 2) Start workers (same as before)
+        startWorkers();
+
+        // 3) Route to UI based on role
         buildUI();
+
         setVisible(true);
     }
 
@@ -52,13 +60,29 @@ public class Main extends JFrame {
         String role = (user.getRole() == null) ? "" : user.getRole().toString().toUpperCase();
 
         if (role.contains("ADMIN")) {
-            setContentPane(new AdminDashboardPanel(this, user, accountDAO, transactionDAO, engine, onExit));
+            setContentPane(new AdminDashboardPanel(this, user, accountDAO, transactionDAO, engine, onExit, () -> {}));
         } else {
             setContentPane(new ClientDashboardPanel(this, user, accountDAO, transactionDAO, engine, onExit));
         }
 
         revalidate();
         repaint();
+    }
+
+    private void startWorkers() {
+        workers = new Worker[3];
+        for (int i = 0; i < workers.length; i++) {
+            workers[i] = new Worker(engine, i + 1);
+            workers[i].start();
+        }
+    }
+
+    private void shutdownWorkers() {
+        if (workers == null) return;
+        for (Worker w : workers) w.shutdown();
+        for (Worker w : workers) {
+            try { w.join(800); } catch (InterruptedException ignored) {}
+        }
     }
 
     private void exit() {
@@ -71,7 +95,7 @@ public class Main extends JFrame {
         );
         if (confirm != JOptionPane.YES_OPTION) return;
 
-        engine.shutdown();
+        shutdownWorkers();
         dispose();
         System.exit(0);
     }
@@ -82,7 +106,6 @@ public class Main extends JFrame {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception ignored) {}
     }
-
     // ===== Theme (same as your old Main) =====
     private static final Color TEXT = new Color(33, 37, 41);
     private static final Color MUTED = new Color(108, 117, 125);
@@ -148,12 +171,13 @@ public class Main extends JFrame {
         return b;
     }
 
-    // ---------- LOGIN DIALOG ----------
+    // ---------- LOGIN DIALOG (kept in Main to avoid extra files) ----------
     private User showLoginDialog() {
         JPanel root = new JPanel(new BorderLayout(14, 14));
         root.setBorder(new javax.swing.border.EmptyBorder(24, 24, 24, 24));
         root.setBackground(Color.WHITE);
 
+        // Title
         JPanel titlePanel = new JPanel();
         titlePanel.setBackground(Color.WHITE);
         titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.Y_AXIS));
@@ -172,6 +196,7 @@ public class Main extends JFrame {
         titlePanel.add(Box.createVerticalStrut(6));
         titlePanel.add(subtitle);
 
+        // Form
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(Color.WHITE);
         GridBagConstraints gbc = new GridBagConstraints();
@@ -210,6 +235,7 @@ public class Main extends JFrame {
         gbc.gridx = 1; gbc.gridy = 2; gbc.weightx = 1.0;
         formPanel.add(hint, gbc);
 
+        // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         buttonPanel.setBackground(Color.WHITE);
         JButton cancelBtn = createPrimaryButton("Exit", "🚪", DANGER, false);
