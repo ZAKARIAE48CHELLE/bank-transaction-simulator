@@ -115,7 +115,7 @@ public class UserDAO {
         return -1;
     }
 
-    // Delete user + accounts + transactions (safe even without FK cascade)
+    // ✅ Delete user + accounts + transactions (safe even without FK cascade)
     public boolean deleteUserCascade(int userId) {
         Connection conn = null;
         try {

@@ -6,6 +6,7 @@ import org.example.bank.concurrency.BankEngine;
 import org.example.bank.concurrency.Worker;
 import org.example.bank.dao.AccountDAO;
 import org.example.bank.dao.TransactionDAO;
+import org.example.bank.dao.UserDAO;
 import org.example.bank.ui.admin.AdminDashboardPanel;
 import org.example.bank.ui.client.ClientDashboardPanel;
 
@@ -45,10 +46,10 @@ public class Main extends JFrame {
             return;
         }
 
-        // 2) Start workers (same as before)
+        // 2) Start workers
         startWorkers();
 
-        // 3) Route to UI based on role
+        // 3) Route UI
         buildUI();
 
         setVisible(true);
@@ -56,11 +57,12 @@ public class Main extends JFrame {
 
     private void buildUI() {
         Runnable onExit = this::exit;
+        Runnable onSignOut = this::signOut;
 
         String role = (user.getRole() == null) ? "" : user.getRole().toString().toUpperCase();
 
         if (role.contains("ADMIN")) {
-            setContentPane(new AdminDashboardPanel(this, user, accountDAO, transactionDAO, engine, onExit, () -> {}));
+            setContentPane(new AdminDashboardPanel(this, user, accountDAO, transactionDAO, engine, onExit, onSignOut));
         } else {
             setContentPane(new ClientDashboardPanel(this, user, accountDAO, transactionDAO, engine, onExit));
         }
@@ -68,6 +70,27 @@ public class Main extends JFrame {
         revalidate();
         repaint();
     }
+
+    private void signOut() {
+        // stop UI, keep app open
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Do you want to sign out?",
+                "Sign out",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE
+        );
+        if (confirm != JOptionPane.YES_OPTION) return;
+
+        // show login again (same dialog)
+        user = showLoginDialog();
+        if (user == null) {
+            exit();
+            return;
+        }
+        buildUI();
+    }
+
 
     private void startWorkers() {
         workers = new Worker[3];
@@ -83,6 +106,7 @@ public class Main extends JFrame {
         for (Worker w : workers) {
             try { w.join(800); } catch (InterruptedException ignored) {}
         }
+        workers = null;
     }
 
     private void exit() {
@@ -102,18 +126,17 @@ public class Main extends JFrame {
 
     // ---------- LOOK & FEEL ----------
     private void setSystemLookAndFeel() {
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ignored) {}
+        try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); }
+        catch (Exception ignored) {}
     }
-    // ===== Theme (same as your old Main) =====
+
+    // ===== Theme =====
     private static final Color TEXT = new Color(33, 37, 41);
     private static final Color MUTED = new Color(108, 117, 125);
     private static final Color ACCENT = new Color(0, 122, 255);
     private static final Color DANGER = new Color(255, 59, 48);
     private static final Color BORDER = new Color(222, 226, 230);
 
-    // ===== Fonts =====
     private static final String FONT = "Segoe UI";
     private static final String EMOJI_FONT = "Segoe UI Emoji";
     private static final int BASE = 13;
@@ -171,13 +194,13 @@ public class Main extends JFrame {
         return b;
     }
 
-    // ---------- LOGIN DIALOG (kept in Main to avoid extra files) ----------
+    // ---------- LOGIN DIALOG ----------
     private User showLoginDialog() {
+
         JPanel root = new JPanel(new BorderLayout(14, 14));
         root.setBorder(new javax.swing.border.EmptyBorder(24, 24, 24, 24));
         root.setBackground(Color.WHITE);
 
-        // Title
         JPanel titlePanel = new JPanel();
         titlePanel.setBackground(Color.WHITE);
         titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.Y_AXIS));
@@ -196,7 +219,6 @@ public class Main extends JFrame {
         titlePanel.add(Box.createVerticalStrut(6));
         titlePanel.add(subtitle);
 
-        // Form
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(Color.WHITE);
         GridBagConstraints gbc = new GridBagConstraints();
@@ -235,12 +257,15 @@ public class Main extends JFrame {
         gbc.gridx = 1; gbc.gridy = 2; gbc.weightx = 1.0;
         formPanel.add(hint, gbc);
 
-        // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         buttonPanel.setBackground(Color.WHITE);
+
         JButton cancelBtn = createPrimaryButton("Exit", "🚪", DANGER, false);
-        JButton loginBtn = createPrimaryButton("Login", "🔒", ACCENT, true);
+        JButton signupBtn = createPrimaryButton("Create client account", "📝", MUTED, false);
+        JButton loginBtn  = createPrimaryButton("Login", "🔒", ACCENT, true);
+
         buttonPanel.add(cancelBtn);
+        buttonPanel.add(signupBtn);
         buttonPanel.add(loginBtn);
 
         root.add(titlePanel, BorderLayout.NORTH);
@@ -277,15 +302,96 @@ public class Main extends JFrame {
         };
 
         loginBtn.addActionListener(e -> doLogin.run());
+
         cancelBtn.addActionListener(e -> {
             result[0] = null;
             dialog.dispose();
         });
 
+        // ✅ Create CLIENT only + create default account
+        signupBtn.addActionListener(e -> showSignupDialog(dialog));
+
         dialog.getRootPane().setDefaultButton(loginBtn);
         dialog.setVisible(true);
 
         return result[0];
+    }
+
+    private void showSignupDialog(JDialog parent) {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(new javax.swing.border.EmptyBorder(16, 16, 16, 16));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel uLbl = new JLabel("Username");
+        uLbl.setFont(f(Font.BOLD, BASE));
+        uLbl.setForeground(TEXT);
+        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0;
+        panel.add(uLbl, gbc);
+
+        JTextField uField = new JTextField(18);
+        styleTextField(uField);
+        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1;
+        panel.add(uField, gbc);
+
+        JLabel pLbl = new JLabel("Password");
+        pLbl.setFont(f(Font.BOLD, BASE));
+        pLbl.setForeground(TEXT);
+        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0;
+        panel.add(pLbl, gbc);
+
+        JPasswordField pField = new JPasswordField(18);
+        styleTextField(pField);
+        gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 1;
+        panel.add(pField, gbc);
+
+        JLabel info = new JLabel("Note: only CLIENT accounts can be created here.");
+        info.setFont(f(Font.PLAIN, SMALL));
+        info.setForeground(MUTED);
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
+        panel.add(info, gbc);
+
+        int res = JOptionPane.showConfirmDialog(
+                parent,
+                panel,
+                "Create Client Account",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE
+        );
+        if (res != JOptionPane.OK_OPTION) return;
+
+        String username = uField.getText().trim();
+        String password = new String(pField.getPassword()).trim();
+
+        if (username.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(parent, "Username and password required.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        UserDAO userDAO = new UserDAO();
+        if (userDAO.usernameExists(username)) {
+            JOptionPane.showMessageDialog(parent, "Username already exists.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // ✅ create client + get id
+        int newUserId = userDAO.createClientReturnId(username, password);
+        if (newUserId <= 0) {
+            JOptionPane.showMessageDialog(parent, "Failed to create account.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // ✅ create default account
+        boolean okAcc = accountDAO.createDefaultAccountForUser(newUserId);
+
+        if (okAcc) {
+            JOptionPane.showMessageDialog(parent, "Client account + default bank account created ✅", "Success", JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(parent, "Client created but default account failed.", "Warning", JOptionPane.WARNING_MESSAGE);
+        }
     }
 
     public static void main(String[] args) {

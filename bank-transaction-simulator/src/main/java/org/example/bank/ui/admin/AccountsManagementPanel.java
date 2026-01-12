@@ -5,18 +5,24 @@ import org.example.bank.concurrency.BankEngine;
 import org.example.bank.dao.AccountDAO;
 import org.example.bank.dao.TransactionDAO;
 import org.example.bank.model.Account;
+import org.example.bank.transactions.DepositTransaction;
+import org.example.bank.transactions.TransferTransaction;
+import org.example.bank.transactions.WithdrawTransaction;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
+import java.util.Optional;
 
 public class AccountsManagementPanel extends JPanel {
 
     private final JFrame owner;
     private final User currentUser;
     private final AccountDAO accountDAO;
+    private final TransactionDAO transactionDAO;
+    private final BankEngine engine;
 
     private JTable table;
     private DefaultTableModel model;
@@ -26,6 +32,8 @@ public class AccountsManagementPanel extends JPanel {
         this.owner = owner;
         this.currentUser = currentUser;
         this.accountDAO = accountDAO;
+        this.transactionDAO = transactionDAO;
+        this.engine = engine;
 
         setLayout(new BorderLayout(12, 12));
         setBackground(Color.WHITE);
@@ -70,10 +78,9 @@ public class AccountsManagementPanel extends JPanel {
         JButton withdraw = buttonClientStyle("Withdraw", "➖");
         JButton transfer = buttonClientStyle("Transfer", "🔁");
 
-        // (optional) actions placeholders
-        deposit.addActionListener(e -> JOptionPane.showMessageDialog(owner, "Deposit action (admin)"));
-        withdraw.addActionListener(e -> JOptionPane.showMessageDialog(owner, "Withdraw action (admin)"));
-        transfer.addActionListener(e -> JOptionPane.showMessageDialog(owner, "Transfer action (admin)"));
+        deposit.addActionListener(e -> doDeposit());
+        withdraw.addActionListener(e -> doWithdraw());
+        transfer.addActionListener(e -> doTransfer());
 
         bottom.add(deposit);
         bottom.add(withdraw);
@@ -81,10 +88,122 @@ public class AccountsManagementPanel extends JPanel {
         return bottom;
     }
 
+    // ===================== ACTIONS =====================
+
+    private void doDeposit() {
+        Account acc = getSelectedAccountOrWarn();
+        if (acc == null) return;
+
+        Double amount = askAmount("Deposit - Amount");
+        if (amount == null) return;
+
+        // ✅ vraie transaction
+        engine.submit(new DepositTransaction(acc, amount));
+        JOptionPane.showMessageDialog(owner, "Deposit submitted ✅", "OK", JOptionPane.INFORMATION_MESSAGE);
+
+        refreshLater();
+    }
+
+    private void doWithdraw() {
+        Account acc = getSelectedAccountOrWarn();
+        if (acc == null) return;
+
+        Double amount = askAmount("Withdraw - Amount");
+        if (amount == null) return;
+
+        engine.submit(new WithdrawTransaction(acc, amount));
+        JOptionPane.showMessageDialog(owner, "Withdraw submitted ✅", "OK", JOptionPane.INFORMATION_MESSAGE);
+
+        refreshLater();
+    }
+
+    private void doTransfer() {
+        Account from = getSelectedAccountOrWarn();
+        if (from == null) return;
+
+        // Choisir compte destination
+        List<Account> all = accountDAO.findAll();
+        Account to = chooseAccountDialog(all, from);
+        if (to == null) return;
+
+        Double amount = askAmount("Transfer - Amount");
+        if (amount == null) return;
+
+        engine.submit(new TransferTransaction(from, to, amount));
+        JOptionPane.showMessageDialog(owner, "Transfer submitted ✅", "OK", JOptionPane.INFORMATION_MESSAGE);
+
+        refreshLater();
+    }
+
+    // ===================== HELPERS =====================
+
+    private void refreshLater() {
+        // petite attente pour laisser le worker exécuter
+        new javax.swing.Timer(400, e -> {
+            refresh();
+            ((javax.swing.Timer) e.getSource()).stop();
+        }).start();
+    }
+
+    private Account getSelectedAccountOrWarn() {
+        int row = table.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(owner, "Select an account first.", "Warning", JOptionPane.WARNING_MESSAGE);
+            return null;
+        }
+        int accountId = Integer.parseInt(model.getValueAt(row, 0).toString());
+        return findAccountById(accountId).orElse(null);
+    }
+
+    private Optional<Account> findAccountById(int id) {
+        return accountDAO.findAll().stream().filter(a -> a.getId() == id).findFirst();
+    }
+
+    private Double askAmount(String title) {
+        String s = JOptionPane.showInputDialog(owner, "Enter amount:", title, JOptionPane.PLAIN_MESSAGE);
+        if (s == null) return null;
+        s = s.trim().replace(",", ".");
+        if (s.isEmpty()) return null;
+
+        try {
+            double v = Double.parseDouble(s);
+            if (v <= 0) throw new NumberFormatException();
+            return v;
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(owner, "Invalid amount.", "Error", JOptionPane.ERROR_MESSAGE);
+            return null;
+        }
+    }
+
+    private Account chooseAccountDialog(List<Account> accounts, Account from) {
+        DefaultComboBoxModel<Account> m = new DefaultComboBoxModel<>();
+        for (Account a : accounts) {
+            if (a.getId() != from.getId()) m.addElement(a);
+        }
+
+        JComboBox<Account> cb = new JComboBox<>(m);
+        cb.setRenderer((list, value, index, isSelected, cellHasFocus) -> {
+            JLabel lbl = new JLabel();
+            if (value != null) {
+                lbl.setText(value.getAccountRef() + "  |  " + String.format("%.2f DH", value.getBalance()));
+            }
+            lbl.setOpaque(true);
+            lbl.setBackground(isSelected ? new Color(245, 247, 250) : Color.WHITE);
+            return lbl;
+        });
+
+        int res = JOptionPane.showConfirmDialog(owner, cb, "Select destination account",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+        if (res != JOptionPane.OK_OPTION) return null;
+        return (Account) cb.getSelectedItem();
+    }
+
     private void refresh() {
         model.setRowCount(0);
         List<Account> list = accountDAO.findAll();
         for (Account a : list) {
+            // ✅ USER_ID doit venir de l'objet Account (pas a.getId())
             model.addRow(new Object[]{a.getId(), a.getId(), a.getAccountRef(), a.getBalance()});
         }
     }
