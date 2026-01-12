@@ -2,10 +2,10 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1
--- Generation Time: Jan 04, 2026 at 11:50 PM
--- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- Hôte : 127.0.0.1
+-- Généré le : lun. 12 jan. 2026 à 12:00
+-- Version du serveur : 10.4.32-MariaDB
+-- Version de PHP : 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,13 +18,13 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `bank_simulator`
+-- Base de données : `bank_simulator`
 --
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `accounts`
+-- Structure de la table `accounts`
 --
 
 CREATE TABLE `accounts` (
@@ -35,18 +35,20 @@ CREATE TABLE `accounts` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `accounts`
+-- Déchargement des données de la table `accounts`
 --
 
 INSERT INTO `accounts` (`id`, `user_id`, `balance`, `account_ref`) VALUES
-(1, 1, 43767, 'ACC-1'),
-(2, 1, 1296, 'ACC-2'),
-(3, 2, 6904, 'ACC-3');
+(1, 1, 39967, 'ACC-1'),
+(2, 1, 2496, 'ACC-2'),
+(3, 2, 17904, 'ACC-3'),
+(4, 5, 0, 'ACC-5-77147'),
+(5, 6, 0, 'ACC-6-97453');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `transactions`
+-- Structure de la table `transactions`
 --
 
 CREATE TABLE `transactions` (
@@ -60,7 +62,7 @@ CREATE TABLE `transactions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `transactions`
+-- Déchargement des données de la table `transactions`
 --
 
 INSERT INTO `transactions` (`id`, `type`, `from_account_ref`, `to_account_ref`, `amount`, `created_at`, `status`) VALUES
@@ -117,12 +119,20 @@ INSERT INTO `transactions` (`id`, `type`, `from_account_ref`, `to_account_ref`, 
 (51, 'TRANSFER', 'ACC-1', 'ACC-3', 175, '2026-01-04 00:02:46', 'DONE'),
 (52, 'TRANSFER', 'ACC-1', 'ACC-2', 179, '2026-01-04 00:02:46', 'DONE'),
 (53, 'TRANSFER', 'ACC-1', 'ACC-2', 127, '2026-01-04 00:02:46', 'DONE'),
-(54, 'TRANSFER', 'ACC-2', 'ACC-3', 38, '2026-01-04 00:02:46', 'DONE');
+(54, 'TRANSFER', 'ACC-2', 'ACC-3', 38, '2026-01-04 00:02:46', 'DONE'),
+(55, 'DEPOSIT', NULL, 'ACC-2', 1200, '2026-01-07 20:04:05', 'DONE'),
+(56, 'TRANSFER', 'ACC-1', 'ACC-3', 1000, '2026-01-07 20:07:49', 'DONE'),
+(57, 'DEPOSIT', NULL, 'ACC-1', 10000, '2026-01-09 01:05:32', 'DONE'),
+(58, 'DEPOSIT', NULL, 'ACC-1', 2000, '2026-01-09 01:05:41', 'DONE'),
+(59, 'WITHDRAW', 'ACC-1', NULL, 3000, '2026-01-09 01:06:16', 'DONE'),
+(60, 'WITHDRAW', 'ACC-1', NULL, 3000, '2026-01-09 01:06:39', 'DONE'),
+(61, 'DEPOSIT', NULL, 'ACC-1', 200, '2026-01-10 00:14:42', 'DONE'),
+(62, 'TRANSFER', 'ACC-1', 'ACC-3', 10000, '2026-01-10 00:15:06', 'DONE');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `users`
+-- Structure de la table `users`
 --
 
 CREATE TABLE `users` (
@@ -133,20 +143,22 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `users`
+-- Déchargement des données de la table `users`
 --
 
 INSERT INTO `users` (`id`, `username`, `password`, `role`) VALUES
 (1, 'client1', '1234', 'CLIENT'),
 (2, 'client2', '1234', 'CLIENT'),
-(3, 'admin1', 'admin', 'ADMIN');
+(3, 'admin1', 'admin', 'ADMIN'),
+(5, 'yassir', '0000', 'CLIENT'),
+(6, 'zakarie', '0000', 'CLIENT');
 
 --
--- Indexes for dumped tables
+-- Index pour les tables déchargées
 --
 
 --
--- Indexes for table `accounts`
+-- Index pour la table `accounts`
 --
 ALTER TABLE `accounts`
   ADD PRIMARY KEY (`id`),
@@ -154,53 +166,53 @@ ALTER TABLE `accounts`
   ADD KEY `user_id` (`user_id`);
 
 --
--- Indexes for table `transactions`
+-- Index pour la table `transactions`
 --
 ALTER TABLE `transactions`
   ADD PRIMARY KEY (`id`),
   ADD KEY `from_account_ref` (`from_account_ref`);
 
 --
--- Indexes for table `users`
+-- Index pour la table `users`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `username` (`username`);
 
 --
--- AUTO_INCREMENT for dumped tables
+-- AUTO_INCREMENT pour les tables déchargées
 --
 
 --
--- AUTO_INCREMENT for table `accounts`
+-- AUTO_INCREMENT pour la table `accounts`
 --
 ALTER TABLE `accounts`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- AUTO_INCREMENT for table `transactions`
+-- AUTO_INCREMENT pour la table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=55;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=63;
 
 --
--- AUTO_INCREMENT for table `users`
+-- AUTO_INCREMENT pour la table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
--- Constraints for dumped tables
+-- Contraintes pour les tables déchargées
 --
 
 --
--- Constraints for table `accounts`
+-- Contraintes pour la table `accounts`
 --
 ALTER TABLE `accounts`
   ADD CONSTRAINT `accounts_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
 
 --
--- Constraints for table `transactions`
+-- Contraintes pour la table `transactions`
 --
 ALTER TABLE `transactions`
   ADD CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`from_account_ref`) REFERENCES `accounts` (`account_ref`);
