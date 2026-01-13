@@ -64,7 +64,7 @@ public class Main extends JFrame {
         if (role.contains("ADMIN")) {
             setContentPane(new AdminDashboardPanel(this, user, accountDAO, transactionDAO, engine, onExit, onSignOut));
         } else {
-            setContentPane(new ClientDashboardPanel(this, user, accountDAO, transactionDAO, engine, onExit));
+            setContentPane(new ClientDashboardPanel(this, user, accountDAO, transactionDAO, engine, onExit , onSignOut));
         }
 
         revalidate();

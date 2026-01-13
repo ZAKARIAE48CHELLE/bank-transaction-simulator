@@ -68,7 +68,7 @@ public class ClientDashboardPanel extends JPanel {
                                 AccountDAO accountDAO,
                                 TransactionDAO transactionDAO,
                                 BankEngine engine,
-                                Runnable onExit) {
+                                Runnable onExit, Runnable onSignOut) {
 
         this.owner = owner;
         this.user = user;
@@ -76,6 +76,7 @@ public class ClientDashboardPanel extends JPanel {
         this.transactionDAO = transactionDAO;
         this.engine = engine;
         this.onExit = onExit;
+        this.onSignOut = onSignOut;
 
         setLayout(new BorderLayout());
         setBackground(BG);
@@ -199,7 +200,8 @@ public class ClientDashboardPanel extends JPanel {
 
         JButton refreshBtn = createSidebarButton("Refresh data", "🔄", ACCENT);
         JButton exitBtn = createSidebarButton("Exit", "🚪", DANGER);
-
+        JButton signOutBtn = createActionButton("Sign out", "📋", ACCENT_2);
+        signOutBtn.addActionListener(ev -> onSignOut.run());
         refreshBtn.addActionListener(e -> {
             refreshAccounts(false);
             refreshHistory();
@@ -209,6 +211,7 @@ public class ClientDashboardPanel extends JPanel {
         actionsCard.add(refreshBtn);
         actionsCard.add(Box.createVerticalStrut(8));
         actionsCard.add(exitBtn);
+        actionsCard.add(signOutBtn);
 
         sidebar.add(actionsCard);
         sidebar.add(Box.createVerticalGlue());
@@ -294,6 +297,7 @@ public class ClientDashboardPanel extends JPanel {
 
         return row;
     }
+    private final Runnable onSignOut;
 
     // ================== COMPONENT FACTORIES ==================
     private JPanel createCardPanel(String title, String icon) {
@@ -345,6 +349,7 @@ public class ClientDashboardPanel extends JPanel {
 
         b.add(ic, BorderLayout.WEST);
         b.add(tx, BorderLayout.CENTER);
+
 
         b.addMouseListener(new MouseAdapter() {
             @Override public void mouseEntered(MouseEvent e) { b.setBackground(new Color(245, 247, 250)); }
